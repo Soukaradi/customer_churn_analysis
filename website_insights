@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamVerse Customer Churn Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals with Subtle Accents -->
+    <!-- Application Structure Plan: A thematic, single-page dashboard. The structure is designed for intuitive exploration, starting with a comprehensive "Project Overview", moving into "Data & Setup" (covering generation and schema), then a detailed "Key Analyses" section with all SQL queries and their outputs, followed by "Driving Insights & Solutions", and concluding with "Lessons Learned". This non-linear, thematic approach allows users to quickly grasp the main insights and explore areas of interest without being constrained by the linear flow of the original report. Navigation tabs control the visibility of each thematic section, creating a seamless SPA experience. This design prioritizes usability and quick synthesis of complex information. -->
+    <!-- Visualization & Content Choices: 
+        - Overall Churn Rate: Goal=Inform -> Viz=Donut Chart & Big Number -> Interaction=None -> Justification=Quickly conveys the most critical KPI. Library=Chart.js.
+        - Churn by Plan: Goal=Compare -> Viz=Horizontal Bar Chart -> Interaction=Hover for details -> Justification=Clearly compares churn rates across a few categories, highlighting the disparity. Library=Chart.js.
+        - Engagement (Minutes Watched): Goal=Compare -> Viz=Vertical Bar Chart -> Interaction=Hover for details -> Justification=Effectively contrasts the behavior of two distinct groups (Churned vs. Active). Library=Chart.js.
+        - Churn by Demographics/Device: Goal=Compare -> Viz=Bar Charts -> Interaction=Hover for details -> Justification=Simple, effective comparison across multiple categories. Library=Chart.js.
+        - Support Ticket Impact: Goal=Compare -> Viz=Bar Chart -> Interaction=Hover for details -> Justification=Visually links customer service performance directly to churn rates. Library=Chart.js.
+        - Actionable Solutions: Goal=Inform -> Viz=Structured HTML/CSS Cards -> Interaction=None -> Justification=Presents qualitative recommendations in a clear, digestible format. Method=Tailwind CSS.
+        - SQL Queries & Outputs: Goal=Inform/Explain -> Viz=Code Blocks & HTML Tables -> Interaction=None -> Justification=Provides detailed evidence and methodology. Method=HTML.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f7f4; /* Light warm neutral */
+            color: #3f3c3a; /* Dark warm grey for text */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Max width for charts */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .nav-btn {
+            transition: all 0.3s ease;
+            color: #3f3c3a; /* Default text color for nav buttons */
+        }
+        .nav-btn.active {
+            background-color: #eaddd7; /* Light warm beige for active state */
+            color: #3f3c3a;
+            font-weight: 600;
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+        }
+        .kpi-card, .chart-card {
+            background-color: #ffffff; /* White card background */
+            border: 1px solid #eaddd7; /* Light warm beige border */
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05); /* Subtle shadow */
+        }
+        .code-block {
+            background-color: #f2f2f0; /* Slightly darker light warm neutral */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #3f3c3a;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.9em;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #eaddd7;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .data-table th {
+            background-color: #f0eae7; /* Very light, slightly warmer beige */
+            font-weight: 600;
+            color: #a56a50; /* Primary accent for headers */
+        }
+        /* Removed .icon-small as stars are removed */
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-[#3f3c3a] mb-2">📊 StreamVerse Customer Churn Analysis & Retention Strategy</h1>
+            <p class="text-lg text-[#6e6a67]">A data-driven project to understand, predict, and reduce customer churn for a subscription service.</p>
+        </header>
+
+        <nav class="flex justify-center mb-8 bg-white p-2 rounded-full shadow-sm border border-[#eaddd7] max-w-4xl mx-auto flex-wrap gap-2">
+            <button class="nav-btn active flex-1 py-2 px-4 rounded-full text-center min-w-[120px]" data-target="project-overview">Project Overview</button>
+            <button class="nav-btn flex-1 py-2 px-4 rounded-full text-center min-w-[120px]" data-target="data-schema">Data & Setup</button>
+            <button class="nav-btn flex-1 py-2 px-4 rounded-full text-center min-w-[120px]" data-target="key-analyses">Key Analyses</button>
+            <button class="nav-btn flex-1 py-2 px-4 rounded-full text-center min-w-[120px]" data-target="insights-solutions">Insights & Solutions</button>
+            <button class="nav-btn flex-1 py-2 px-4 rounded-full text-center min-w-[120px]" data-target="lessons-learned">Lessons Learned</button>
+        </nav>
+
+        <main>
+            <!-- Project Overview Section -->
+            <section id="project-overview" class="content-section active">
+                <div class="text-center mb-8 max-w-3xl mx-auto">
+                    <h2 class="text-2xl font-semibold mb-2">Project Overview: Keeping Our Customers Hooked!</h2>
+                    <p class="text-[#6e6a67]">This section sets the stage for our data-driven journey. It explains the core challenge of customer churn, the ambition behind this project, and the comprehensive scope of our analysis to build a robust retention strategy for StreamVerse.</p>
+                </div>
+                <div class="kpi-card text-left mb-6">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">About This Project: Keeping Our Customers Hooked!</h3>
+                    <p class="text-[#6e6a67]">Ever wondered why some people cancel their streaming subscriptions while others stay loyal for years? That's the core question I set out to answer! For any subscription business like StreamVerse, <strong>customer churn</strong> (when customers leave) is a major challenge, directly impacting revenue and growth. My goal here was to dig into customer behavior data, spot those early warning signs of churn, and come up with smart, proactive ways to retain our valuable customers. It's all about turning raw data into actionable insights to boost customer lifetime value!</p>
+                </div>
+                <div class="kpi-card text-left">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">Project Scope: Our Data Detective Work</h3>
+                    <p class="text-[#6e6a67]">This project is a full, end-to-end journey in data analytics, focusing on customer data from StreamVerse. Here’s a peek into the detective work involved:</p>
+                    <ul class="list-disc list-inside text-[#6e6a67] mt-4 space-y-2">
+                        <li><strong>Generating Realistic Data</strong>: I crafted synthetic, yet realistic, data covering customer demographics, subscription history, usage patterns, and even support interactions. The key was baking in "clues" about churn right from the start!</li>
+                        <li><strong>Database Design</strong>: Setting up a structured relational database (PostgreSQL) to efficiently store and manage all this rich information.</li>
+                        <li><strong>SQL Power</strong>: Using powerful SQL queries to clean, transform, and analyze the data, unearthing the key indicators that signal churn.</li>
+                        <li><strong>KPI Tracking</strong>: Calculating vital metrics like overall churn rate, average subscription duration, and feature usage to quantify our findings.</li>
+                        <li><strong>Strategic Solutions</strong>: Developing concrete business recommendations and a retention strategy directly from our data-driven insights.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Data & Schema Section -->
+            <section id="data-schema" class="content-section">
+                <div class="text-center mb-8 max-w-3xl mx-auto">
+                    <h2 class="text-2xl font-semibold mb-2">Data Generation & Database Setup</h2>
+                    <p class="text-[#6e6a67]">This section dives into the technical foundation of the project: how I generated the realistic dataset using Python and designed the robust PostgreSQL database schema to house our information.</p>
+                </div>
+                <div class="kpi-card text-left mb-6">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">Data Generation: Bringing StreamVerse to Life with Python</h3>
+                    <p class="text-[#6e6a67]">To simulate real-world scenarios, I used Python's `pandas` for data handling and `Faker` to generate synthetic, interconnected datasets. The critical step here was to <strong>build in realistic variations and correlations</strong> from the outset. For example, I intentionally made customers on the 'Premium' plan more likely to churn and linked higher churn to unresolved support tickets. This approach ensures our analysis yields genuine, actionable insights instead of uniform results.</p>
+                    <h4 class="text-lg font-semibold text-[#6e6a67] mt-4 mb-2">Key Data Points Generated:</h4>
+                    <ul class="list-disc list-inside text-[#6e6a67] space-y-1">
+                        <li>`CUSTOMERS`: Demographics (age, country, gender), join date, and crucial `is_churned`/`churn_date` flags, with churn probability directly linked to their plan.</li>
+                        <li>`SUBSCRIPTIONS`: Details on subscription plans (`Basic`, `Standard`, `Premium`), monthly cost, and subscription duration.</li>
+                        <li>`USAGE_HISTORY`: Insights into `minutes_watched`, `favorite genres`, and `devices` used, with lower usage intentionally correlating with churn.</li>
+                        <li>`SUPPORT_TICKETS`: Information on customer issues, `resolution times`, and `resolution status`, where unresolved/long-resolution tickets correlate with churn.</li>
+                    </ul>
+                    <p class="text-[#6e6a67] mt-4">All this data is saved into CSV files, ready for seamless database import!</p>
+                </div>
+
+                <div class="kpi-card text-left">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">Database Setup: PostgreSQL Powerhouse</h3>
+                    <p class="text-[#6e6a67]">With our data ready, the next step was building a reliable home for it. I designed a relational database schema in PostgreSQL to meticulously track every aspect of a customer's journey, ensuring data integrity and efficient querying.</p>
+                    <h4 class="text-lg font-semibold text-[#6e6a67] mt-4 mb-2">Table Schemas:</h4>
+                    <ul class="list-disc list-inside text-[#6e6a67] space-y-2">
+                        <li><strong>CUSTOMERS</strong>: `customer_id` (PK, INT), `age` (INT), `country` (VARCHAR), `gender` (VARCHAR), `is_churned` (BOOLEAN), `join_date` (DATE), `churn_date` (DATE)</li>
+                        <li><strong>SUBSCRIPTIONS</strong>: `subscription_id` (PK, VARCHAR), `customer_id` (FK to `CUSTOMERS`), `plan_type` (VARCHAR), `monthly_cost` (DECIMAL), `subscription_start_date` (DATE), `subscription_end_date` (DATE)</li>
+                        <li><strong>USAGE_HISTORY</strong>: `usage_id` (PK, INT), `customer_id` (FK to `CUSTOMERS`), `minutes_watched` (INT), `genre` (VARCHAR), `device` (VARCHAR)</li>
+                        <li><strong>SUPPORT_TICKETS</strong>: `ticket_id` (PK, INT), `customer_id` (FK to `CUSTOMERS`), `ticket_date` (DATE), `issue_type` (VARCHAR), `resolution_time_days` (INT), `is_resolved` (BOOLEAN)</li>
+                    </ul>
+                    <h4 class="text-lg font-semibold text-[#6e6a67] mt-4 mb-2">To Replicate the Database Setup:</h4>
+                    <ol class="list-decimal list-inside text-[#6e6a67] space-y-2">
+                        <li><strong>Install PostgreSQL</strong>: Ensure you have PostgreSQL installed and running.</li>
+                        <li><strong>Create Database</strong>: Connect to `psql` (or your preferred client) and run: <code class="code-block block">CREATE DATABASE project_1;</code></li>
+                        <li><strong>Connect to Database</strong>: <code class="code-block block">\c project_1;</code></li>
+                        <li><strong>Create Tables</strong>: Execute the `CREATE TABLE` statements (as detailed above in "Table Schemas") for each table.</li>
+                        <li><strong>Import Data</strong>: Run the Python data generation script (from your project files) to create the CSVs. Then, use the `COPY` commands (remember to replace `/path/to/your/csv_files/` with your actual path, e.g., `C:/Users/YourUser/Desktop/project_folder/`):
+                            <pre class="code-block"><code>TRUNCATE TABLE customers CASCADE; -- Clear existing data safely and all related foreign key tables
+COPY customers FROM 'C:/Users/Dell/SQL project/customers.csv' WITH (FORMAT CSV, HEADER TRUE, DELIMITER ',', ENCODING 'UTF8');
+COPY subscriptions FROM 'C:/Users/Dell/SQL project/subscriptions.csv' WITH (FORMAT CSV, HEADER TRUE, DELIMITER ',', ENCODING 'UTF8');
+COPY usage_history FROM 'C:/Users/Dell/SQL project/usage_history.csv' WITH (FORMAT CSV, HEADER TRUE, DELIMITER ',', ENCODING 'UTF8');
+COPY support_tickets FROM 'C:/Users/Dell/SQL project/support_tickets.csv' WITH (FORMAT CSV, HEADER TRUE, DELIMITER ',', ENCODING 'UTF8');</code></pre>
+                        </li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- Key Analyses Section -->
+            <section id="key-analyses" class="content-section">
+                <div class="text-center mb-8 max-w-3xl mx-auto">
+                    <h2 class="text-2xl font-semibold mb-2">Key Analyses & Insights: What the Data is Whispering</h2>
+                    <p class="text-[#6e6a67]">This section showcases the heart of the project: the critical SQL queries I used to extract actionable insights from the StreamVerse data. Each analysis directly answers a business question, providing the SQL code, its sample output, a clear chart, and the key takeaway.</p>
+                </div>
+
+                <!-- Overall Churn Rate -->
+                <div class="chart-card mb-6">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">1. Overall Churn Rate</h3>
+                    <p class="text-[#6e6a67] mb-2"><strong>Purpose</strong>: A foundational KPI to understand the overall health of our customer base.</p>
+                    <pre class="code-block mb-4"><code>SELECT
+    CAST(SUM(CASE WHEN is_churned = TRUE THEN 1 ELSE 0 END) AS REAL) / COUNT(customer_id) AS overall_churn_rate
+FROM
+    CUSTOMERS;</code></pre>
+                    <h4 class="text-lg font-semibold text-[#6e6a67] mb-2">Sample Output:</h4>
+                    <p class="text-3xl font-bold text-[#a56a50] text-center">26.6%</p>
+                    <p class="text-[#6e6a67] text-center mt-2">Our overall customer churn rate stands at <strong>26.6%</strong>.</p>
+                </div>
+
+                <!-- Churn Rate by Subscription Plan -->
+                <div class="chart-card mb-6">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">2. Churn Rate by Subscription Plan</h3>
+                    <p class="text-[#6e6a67] mb-2"><strong>Purpose</strong>: To identify if certain subscription plans are more susceptible to churn, revealing potential value mismatches.</p>
+                    <pre class="code-block mb-4"><code>SELECT
+    s.plan_type,
+    COUNT(c.customer_id) AS total_customers,
+    SUM(CASE WHEN c.is_churned = TRUE THEN 1 ELSE 0 END) AS churned_customers,
+    CAST(SUM(CASE WHEN c.is_churned = TRUE THEN 1 ELSE 0 END) AS REAL) / COUNT(c.customer_id) AS churn_rate_by_plan
+FROM
+    CUSTOMERS c
+JOIN
+    SUBSCRIPTIONS s ON c.customer_id = s.customer_id
+GROUP BY
+    s.plan_type
+ORDER BY
+    churn_rate_by_plan DESC;</code></pre>
+                    <h4 class="text-lg font-semibold text-[#6e6a67] mb-2">Sample Output:</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Plan Type</th>
+                                <th>Total Customers</th>
+                                <th>Churned Customers</th>
+                                <th>Churn Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Premium</td><td>3350</td><td>1206</td><td>0.3600</td></tr>
+                            <tr><td>Standard</td><td>3300</td><td>825</td><td>0.2500</td></tr>
+                            <tr><td>Basic</td><td>3350</td><td>502</td><td>0.1500</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="text-[#6e6a67] mt-2"><strong>Insight</strong>: Clearly, <strong>Premium plan users churn at a significantly higher rate (36%)</strong> compared to Basic (15%) and Standard (25%). This strongly suggests a major issue with the Premium plan's value proposition.</p>
+                    <div class="chart-container h-80 md:h-96 mt-6">
+                        <canvas id="planChurnChartQuery"></canvas>
+                    </div>
+                </div>
+
+                <!-- Average Minutes Watched for Churned vs. Active Customers -->
+                <div class="chart-card mb-6">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">3. Average Minutes Watched for Churned vs. Active Customers</h3>
+                    <p class="text-[#6e6a67] mb-2"><strong>Purpose</strong>: To uncover behavioral patterns related to content engagement, highlighting disengagement as a churn predictor.</p>
+                    <pre class="code-block mb-4"><code>SELECT
+    c.is_churned,
+    AVG(uh.minutes_watched) AS avg_minutes_watched
+FROM
+    CUSTOMERS c
+JOIN
+    USAGE_HISTORY uh ON c.customer_id = uh.customer_id
+GROUP BY
+    c.is_churned;</code></pre>
+                    <h4 class="text-lg font-semibold text-[#6e6a67] mb-2">Sample Output:</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Is Churned</th>
+                                <th>Avg. Minutes Watched</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>FALSE</td><td>350.12</td></tr>
+                            <tr><td>TRUE</td><td>125.89</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="text-[#6e6a67] mt-2"><strong>Insight</strong>: <strong>Churned customers watch significantly fewer minutes (avg 125.89)</strong> than active customers (avg 350.12). This is a strong indicator that disengagement precedes churn.</p>
+                    <div class="chart-container h-80 md:h-96 mt-6">
+                        <canvas id="minutesWatchedChartQuery"></canvas>
+                    </div>
+                </div>
+
+                <!-- Churn Rate by Customer Demographics (Age Group) -->
+                <div class="chart-card mb-6">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">4. Churn Rate by Customer Demographics (Age Group)</h3>
+                    <p class="text-[#6e6a67] mb-2"><strong>Purpose</strong>: To understand if certain age groups are more prone to churn, informing targeted retention efforts.</p>
+                    <pre class="code-block mb-4"><code>SELECT
+    CASE
+        WHEN age BETWEEN 18 AND 24 THEN '18-24'
+        WHEN age BETWEEN 25 AND 34 THEN '25-34'
+        WHEN age BETWEEN 35 AND 44 THEN '35-44'
+        WHEN age BETWEEN 45 AND 54 THEN '45-54'
+        ELSE '55+'
+    END AS age_group,
+    COUNT(customer_id) AS total_customers,
+    CAST(SUM(CASE WHEN is_churned = TRUE THEN 1 ELSE 0 END) AS REAL) / COUNT(customer_id) AS churn_rate
+FROM
+    CUSTOMERS
+WHERE age IS NOT NULL
+GROUP BY
+    age_group
+ORDER BY
+    churn_rate DESC;</code></pre>
+                    <h4 class="text-lg font-semibold text-[#6e6a67] mb-2">Sample Output:</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Age Group</th>
+                                <th>Total Customers</th>
+                                <th>Churn Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>55+</td><td>1500</td><td>0.32</td></tr>
+                            <tr><td>45-54</td><td>2000</td><td>0.27</td></tr>
+                            <tr><td>35-44</td><td>2500</td><td>0.25</td></tr>
+                            <tr><td>25-34</td><td>2000</td><td>0.23</td></tr>
+                            <tr><td>18-24</td><td>1800</td><td>0.20</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="text-[#6e6a67] mt-2"><strong>Insight</strong>: The <strong>`55+` age group exhibits a slightly higher churn rate</strong>, suggesting potential challenges in catering to older demographics (e.g., content preferences, ease of use).</p>
+                     <div class="chart-container h-80 md:h-96 mt-6">
+                        <canvas id="ageChurnChartQuery"></canvas>
+                    </div>
+                </div>
+
+                <!-- Most Watched Genres by Churned Customers -->
+                <div class="chart-card mb-6">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">5. Most Watched Genres by Churned Customers</h3>
+                    <p class="text-[#6e6a67] mb-2"><strong>Purpose</strong>: To identify if specific content preferences or gaps correlate with churn, particularly for those who left the service.</p>
+                    <pre class="code-block mb-4"><code>SELECT
+    uh.genre,
+    AVG(uh.minutes_watched) AS avg_minutes_watched,
+    COUNT(uh.customer_id) AS total_sessions_churned
+FROM
+    USAGE_HISTORY uh
+JOIN
+    CUSTOMERS c ON uh.customer_id = c.customer_id
+WHERE
+    c.is_churned = TRUE
+GROUP BY
+    uh.genre
+ORDER BY
+    avg_minutes_watched DESC;</code></pre>
+                    <h4 class="text-lg font-semibold text-[#6e6a67] mb-2">Sample Output (for Churned Customers):</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Genre</th>
+                                <th>Avg. Minutes Watched</th>
+                                <th>Total Sessions Churned</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Action</td><td>135.2</td><td>2500</td></tr>
+                            <tr><td>Comedy</td><td>130.5</td><td>2200</td></tr>
+                            <tr><td>Sci-Fi</td><td>128.0</td><td>1800</td></tr>
+                            <tr><td>Drama</td><td>120.1</td><td>2000</td></tr>
+                            <tr><td>Documentary</td><td>95.0</td><td>500</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="text-[#6e6a67] mt-2"><strong>Insight</strong>: While churned customers watch less overall, their engagement with <strong>Documentary content is notably lower</strong> compared to other genres. This could indicate a content gap or dissatisfaction within this specific genre for those who decide to leave.</p>
+                    <div class="chart-container h-80 md:h-96 mt-6">
+                        <canvas id="genreChartQuery"></canvas>
+                    </div>
+                </div>
+
+                <!-- Churn Based on Device Usage -->
+                <div class="chart-card mb-6">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">6. Churn Based on Device Usage</h3>
+                    <p class="text-[#6e6a67] mb-2"><strong>Purpose</strong>: To determine if a particular device type is associated with higher churn rates, pointing to potential UX/performance issues.</p>
+                    <pre class="code-block mb-4"><code>SELECT
+    uh.device,
+    COUNT(uh.customer_id) AS total_sessions,
+    CAST(SUM(CASE WHEN c.is_churned = TRUE THEN 1 ELSE 0 END) AS REAL) / COUNT(DISTINCT uh.customer_id) AS churn_rate_by_device
+FROM
+    USAGE_HISTORY uh
+JOIN
+    CUSTOMERS c ON uh.customer_id = c.customer_id
+GROUP BY
+    uh.device
+ORDER BY
+    churn_rate_by_device DESC;</code></pre>
+                    <h4 class="text-lg font-semibold text-[#6e6a67] mb-2">Sample Output:</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Device</th>
+                                <th>Total Sessions</th>
+                                <th>Churn Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Tablet</td><td>12000</td><td>0.35</td></tr>
+                            <tr><td>Mobile</td><td>15000</td><td>0.28</td></tr>
+                            <tr><td>Laptop</td><td>10000</td><td>0.24</td></tr>
+                            <tr><td>Smart TV</td><td>13000</td><td>0.20</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="text-[#6e6a67] mt-2"><strong>Insight</strong>: Users primarily watching on <strong>Tablet devices have a noticeably higher churn rate</strong>. This strongly suggests a potentially suboptimal user experience or technical issues specifically on the tablet platform.</p>
+                     <div class="chart-container h-80 md:h-96 mt-6">
+                        <canvas id="deviceChurnChartQuery"></canvas>
+                    </div>
+                </div>
+
+                <!-- Churn Rate Based on Support Ticket Resolution Time -->
+                <div class="chart-card mb-6">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">7. Churn Rate Based on Support Ticket Resolution Time</h3>
+                    <p class="text-[#6e6a67] mb-2"><strong>Purpose</strong>: To understand the impact of customer service efficiency on churn rates.</p>
+                    <pre class="code-block mb-4"><code>SELECT
+    CASE
+        WHEN st.resolution_time_days <= 2 THEN 'Quickly Resolved (<3 days)'
+        WHEN st.resolution_time_days > 2 AND st.resolution_time_days <= 7 THEN 'Average Resolution (3-7 days)'
+        ELSE 'Slow Resolution (>7 days)'
+    END AS resolution_category,
+    COUNT(c.customer_id) AS total_customers_with_tickets,
+    CAST(SUM(CASE WHEN c.is_churned = TRUE THEN 1 ELSE 0 END) AS REAL) / COUNT(c.customer_id) AS churn_rate
+FROM
+    CUSTOMERS c
+JOIN
+    SUPPORT_TICKETS st ON c.customer_id = st.customer_id
+WHERE
+    st.is_resolved = TRUE
+GROUP BY
+    resolution_category
+ORDER BY
+    churn_rate DESC;</code></pre>
+                    <h4 class="text-lg font-semibold text-[#6e6a67] mb-2">Sample Output:</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Resolution Category</th>
+                                <th>Total Customers with Tickets</th>
+                                <th>Churn Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Slow Resolution (>7 days)</td><td>1000</td><td>0.45</td></tr>
+                            <tr><td>Average Resolution (3-7 days)</td><td>2500</td><td>0.28</td></tr>
+                            <tr><td>Quickly Resolved (<3 days)</td><td>1500</td><td>0.18</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="text-[#6e6a67] mt-2"><strong>Insight</strong>: Customers whose issues take longer to resolve (<strong>`>7 days`</strong>) have a <strong>significantly higher churn rate (45%)</strong>. This directly links poor customer service response times to customer attrition.</p>
+                </div>
+            </section>
+
+            <!-- Insights & Solutions Section -->
+            <section id="insights-solutions" class="content-section">
+                <div class="text-center mb-8 max-w-3xl mx-auto">
+                    <h2 class="text-2xl font-semibold mb-2">Driving Insights & Actionable Solutions</h2>
+                    <p class="text-[#6e6a67]">This section distills the key takeaways from our analysis and presents concrete, actionable strategies for StreamVerse to implement in order to reduce customer churn effectively. It's about turning data into real-world impact!</p>
+                </div>
+
+                <div class="kpi-card text-left mb-6">
+                    <h3 class="text-xl font-bold mb-2 text-[#a56a50]">Driving Insights: What Our Data is Truly Telling Us</h3>
+                    <p class="text-[#6e6a67]">Our deep dive into StreamVerse's customer data paints a clear picture: churn isn't a mystery; it's a direct response to specific pain points. The data reveals that our churn problem stems from a blend of interconnected factors:</p>
+                    <ul class="list-disc list-inside text-[#6e6a67] mt-4 space-y-2">
+                        <li><strong>Value Perception Mismatch</strong>: Especially for our Premium users, the perceived value isn't matching the higher cost, leading to dissatisfaction.</li>
+                        <li><strong>Disengagement</strong>: Customers who stop actively using the service, especially watching content, are highly likely to leave.</li>
+                        <li><strong>Customer Service Failures</strong>: Slow or unresolved issues create immense frustration, pushing customers away.</li>
+                        <li><strong>Platform & Content Gaps</strong>: Specific device experiences (Tablets) and certain content genres (`Documentary`) might be underperforming, impacting retention.</li>
+                    </ul>
+                    <p class="text-[#6e6a67] mt-4">By understanding these interconnected factors, we can move from reactive churn management to proactive retention strategies.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="kpi-card text-left">
+                        <h3 class="text-xl font-bold mb-2 text-[#a56a50]">1. Revamp the Premium Plan's Value (and Pricing!)</h3>
+                        <p class="text-[#6e6a67] mb-2"><strong>Problem</strong>: High churn on the Premium plan indicates its value does not justify the cost.</p>
+                        <p class="text-[#6e6a67]"><strong>Solution</strong>: Introduce a "Premium Lite" tier, invest in truly exclusive content, and run re-onboarding campaigns to highlight its unique benefits.</p>
+                    </div>
+                    <div class="kpi-card text-left">
+                        <h3 class="text-xl font-bold mb-2 text-[#a56a50]">2. Ignite Re-engagement with Personalization</h3>
+                        <p class="text-[#6e6a67] mb-2"><strong>Problem</strong>: Customers with low watch time are likely to churn.</p>
+                        <p class="text-[#6e6a67]"><strong>Solution</strong>: Implement automated "We Miss You" email campaigns with personalized recommendations for users whose activity drops, and use smart notifications for new content.</p>
+                    </div>
+                    <div class="kpi-card text-left">
+                        <h3 class="text-xl font-bold mb-2 text-[#a56a50]">3. Supercharge Customer Support</h3>
+                        <p class="text-[#6e6a67] mb-2"><strong>Problem</strong>: Slow ticket resolution and unresolved issues are directly causing churn.</p>
+                        <p class="text-[#6e6a67]"><strong>Solution</strong>: Create a priority queue for at-risk customers, empower agents with 360-degree customer views, and use automated follow-ups to ensure issue resolution and satisfaction.</p>
+                    </div>
+                    <div class="kpi-card text-left">
+                        <h3 class="text-xl font-bold mb-2 text-[#a56a50]">4. Polish Platform Experience & Fill Content Voids</h3>
+                        <p class="text-[#6e6a67] mb-2"><strong>Problem</strong>: The high churn rate for Tablet users and the lack of engagement with certain genres point to technical and content problems.</p>
+                        <p class="text-[#6e6a67]"><strong>Solution</strong>: Conduct a UX audit on the tablet app and strategically invest in new, high-quality documentary content in genres that show low engagement among churned users.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Lessons Learned Section -->
+            <section id="lessons-learned" class="content-section">
+                <div class="text-center mb-8 max-w-3xl mx-auto">
+                    <h2 class="text-2xl font-semibold mb-2">Lessons Learned: My Growth Journey</h2>
+                    <p class="text-[#6e6a67]">This section reflects on the key skills and insights gained throughout the StreamVerse churn analysis project, highlighting the personal and professional growth achieved.</p>
+                </div>
+                <div class="kpi-card text-left">
+                    <p class="text-[#6e6a67] mb-4">This project was an incredible learning experience that solidified my understanding of the data analytics lifecycle. I gained hands-on expertise in:</p>
+                    <ul class="list-disc list-inside text-[#6e6a67] space-y-2">
+                        <li><strong>Realistic Data Simulation</strong>: Moving beyond static datasets by building complex, interconnected data with intentional biases, a crucial skill for real-world scenarios.</li>
+                        <li><strong>Advanced SQL for Business Insights</strong>: I deepened my SQL proficiency, using sophisticated queries with `CASE` statements and `JOIN` operations to extract nuanced business intelligence, not just raw numbers.</li>
+                        <li><strong>Connecting Data to Strategy</strong>: The most rewarding part was translating analytical findings into clear, actionable business recommendations. It's about telling a compelling story with data that drives tangible impact.</li>
+                        <li><strong>Problem-Solving Mindset</strong>: This project reinforced the importance of iteratively refining data and analysis based on preliminary results, constantly asking "why" to uncover the true underlying issues.</li>
+                    </ul>
+                    <p class="text-[#6e6a67] mt-4">This project has reinforced my passion for leveraging data to solve complex business challenges and ultimately help companies grow by building stronger customer relationships.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Register the datalabels plugin globally
+            Chart.register(ChartDataLabels);
+
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const contentSections = document.querySelectorAll('.content-section');
+            const charts = {}; // Object to store chart instances for dynamic initialization
+
+            // Function to handle navigation and chart initialization
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetId = button.dataset.target;
+
+                    navButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+
+                    contentSections.forEach(section => {
+                        if (section.id === targetId) {
+                            section.classList.add('active');
+                            // Initialize charts for the active section if not already initialized
+                            if (targetId === 'key-analyses' && !charts.keyAnalysesChartsInitialized) {
+                                initializeKeyAnalysesCharts();
+                                charts.keyAnalysesChartsInitialized = true;
+                            }
+                            if (targetId === 'plans' && !charts.plansChartsInitialized) {
+                                initializePlanCharts();
+                                charts.plansChartsInitialized = true;
+                            }
+                            if (targetId === 'engagement' && !charts.engagementChartsInitialized) {
+                                initializeEngagementCharts();
+                                charts.engagementChartsInitialized = true;
+                            }
+                        } else {
+                            section.classList.remove('active');
+                        }
+                    });
+                });
+            });
+
+            // Chart data based on provided sample outputs
+            const chartData = {
+                planChurn: {
+                    labels: ['Premium', 'Standard', 'Basic'],
+                    data: [36.0, 25.0, 15.0]
+                },
+                minutesWatched: {
+                    labels: ['Active Customers', 'Churned Customers'],
+                    data: [350.12, 125.89]
+                },
+                deviceChurn: {
+                    labels: ['Tablet', 'Mobile', 'Laptop', 'Smart TV'],
+                    data: [35, 28, 24, 20]
+                },
+                ageChurn: {
+                    labels: ['55+', '45-54', '35-44', '25-34', '18-24'],
+                    data: [32, 27, 25, 23, 20]
+                },
+                genreWatched: {
+                    labels: ['Action', 'Comedy', 'Sci-Fi', 'Drama', 'Documentary'],
+                    data: [135.2, 130.5, 128.0, 120.1, 95.0]
+                }
+            };
+
+            const chartFontColor = '#3f3c3a';
+            const chartGridColor = '#eaddd7';
+            const primaryColor = '#a56a50'; /* Main accent color (e.g., for churned data) */
+            const secondaryColor = '#b98c79'; /* Secondary accent for comparison */
+            const accentColors = ['#a56a50', '#b98c79', '#d4b2a3', '#eaddd7', '#6e6a67']; // For categorical data
+
+            const defaultChartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: chartFontColor,
+                            font: {
+                                family: 'Inter',
+                                size: 14,
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#ffffff',
+                        titleColor: '#3f3c3a',
+                        bodyColor: '#3f3c3a',
+                        borderColor: '#eaddd7',
+                        borderWidth: 1,
+                        padding: 10,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                // Handle value display for different chart types and axes
+                                if (context.chart.config.type === 'doughnut') {
+                                    label += context.parsed + '%';
+                                } else if (context.chart.config.options.indexAxis === 'y') {
+                                    label += context.parsed.x.toFixed(2);
+                                } else {
+                                    label += context.parsed.y.toFixed(2);
+                                }
+                                return label;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        color: chartFontColor,
+                        font: {
+                            family: 'Inter',
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        anchor: 'end',
+                        align: 'end',
+                        formatter: function(value, context) {
+                            if (context.chart.config.type === 'doughnut') {
+                                return value + '%';
+                            }
+                            // For percentage values (like churn rates)
+                            if (context.dataset.label.includes('Churn Rate')) {
+                                return value.toFixed(1) + '%';
+                            }
+                            return value.toFixed(1); // For other numeric values
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '', // Default, set specifically per chart
+                            color: chartFontColor,
+                            font: {
+                                family: 'Inter',
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            color: chartFontColor,
+                            font: {
+                                family: 'Inter'
+                            },
+                            callback: function(value, index, ticks) {
+                                const label = this.getLabelForValue(value);
+                                return label;
+                            }
+                        },
+                        grid: {
+                            color: 'transparent'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '', // Default, set specifically per chart
+                            color: chartFontColor,
+                            font: {
+                                family: 'Inter',
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            color: chartFontColor,
+                            font: {
+                                family: 'Inter'
+                            }
+                        },
+                        grid: {
+                            color: chartGridColor
+                        }
+                    }
+                }
+            };
+            
+            const horizontalChartOptions = JSON.parse(JSON.stringify(defaultChartOptions));
+            horizontalChartOptions.indexAxis = 'y';
+            horizontalChartOptions.scales.x.grid.color = chartGridColor;
+            horizontalChartOptions.scales.y.grid.color = 'transparent';
+            // Adjust datalabels for horizontal bars
+            horizontalChartOptions.plugins.datalabels.anchor = 'end';
+            horizontalChartOptions.plugins.datalabels.align = 'end';
+            horizontalChartOptions.plugins.datalabels.offset = 4; // Small offset from the bar end
+
+
+            // --- Initialization Functions for each section's charts ---
+
+            // Overview Section Charts
+            function initializeOverviewCharts() {
+                const churnDonutCanvas = document.getElementById('churnDonutChart');
+                if (churnDonutCanvas && !charts.churnDonut) {
+                    const churnDonutCtx = churnDonutCanvas.getContext('2d');
+                    charts.churnDonut = new Chart(churnDonutCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Active Customers', 'Churned Customers'],
+                            datasets: [{
+                                label: 'Customer Distribution', // Added label for legend
+                                data: [73.4, 26.6],
+                                backgroundColor: [secondaryColor, primaryColor],
+                                borderColor: '#f8f7f4',
+                                borderWidth: 4,
+                                hoverOffset: 8
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '70%',
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        color: chartFontColor,
+                                        font: { size: 14, family: 'Inter' }
+                                    }
+                                },
+                                tooltip: defaultChartOptions.plugins.tooltip,
+                                datalabels: defaultChartOptions.plugins.datalabels
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Plan Performance Section Charts
+            function initializePlanCharts() {
+                const planChurnCanvas = document.getElementById('planChurnChart');
+                if (planChurnCanvas && !charts.planChurn) {
+                    const planChurnCtx = planChurnCanvas.getContext('2d');
+                    const options = JSON.parse(JSON.stringify(horizontalChartOptions));
+                    options.scales.x.title.text = 'Churn Rate (%)';
+                    options.scales.y.title.text = 'Plan Type';
+                    charts.planChurn = new Chart(planChurnCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: chartData.planChurn.labels,
+                            datasets: [{
+                                label: 'Churn Rate',
+                                data: chartData.planChurn.data,
+                                backgroundColor: accentColors,
+                                borderColor: accentColors,
+                                borderWidth: 1,
+                                borderRadius: 5
+                            }]
+                        },
+                        options: options
+                    });
+                }
+            }
+
+            // User Engagement Section Charts
+            function initializeEngagementCharts() {
+                const minutesWatchedCanvas = document.getElementById('minutesWatchedChart');
+                if (minutesWatchedCanvas && !charts.minutesWatched) {
+                    const minutesWatchedCtx = minutesWatchedCanvas.getContext('2d');
+                    const options = JSON.parse(JSON.stringify(defaultChartOptions));
+                    options.scales.x.title.text = 'Customer Type';
+                    options.scales.y.title.text = 'Avg. Minutes Watched';
+                    charts.minutesWatched = new Chart(minutesWatchedCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: chartData.minutesWatched.labels,
+                            datasets: [{
+                                label: 'Average Minutes Watched',
+                                data: chartData.minutesWatched.data,
+                                backgroundColor: [secondaryColor, primaryColor],
+                                borderRadius: 5
+                            }]
+                        },
+                        options: options
+                    });
+                }
+                
+                const deviceChurnCanvas = document.getElementById('deviceChurnChart');
+                if (deviceChurnCanvas && !charts.deviceChurn) {
+                    const deviceChurnCtx = deviceChurnCanvas.getContext('2d');
+                    const options = JSON.parse(JSON.stringify(defaultChartOptions));
+                    options.scales.x.title.text = 'Device Type';
+                    options.scales.y.title.text = 'Churn Rate (%)';
+                    charts.deviceChurn = new Chart(deviceChurnCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: chartData.deviceChurn.labels,
+                            datasets: [{
+                                label: 'Churn Rate (%)',
+                                data: chartData.deviceChurn.data,
+                                backgroundColor: accentColors,
+                                borderRadius: 5
+                            }]
+                        },
+                        options: options
+                    });
+                }
+
+                const ageChurnCanvas = document.getElementById('ageChurnChart');
+                if (ageChurnCanvas && !charts.ageChurn) {
+                    const ageChurnCtx = ageChurnCanvas.getContext('2d');
+                    const options = JSON.parse(JSON.stringify(defaultChartOptions));
+                    options.scales.x.title.text = 'Age Group';
+                    options.scales.y.title.text = 'Churn Rate (%)';
+                    charts.ageChurn = new Chart(ageChurnCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: chartData.ageChurn.labels,
+                            datasets: [{
+                                label: 'Churn Rate (%)',
+                                data: chartData.ageChurn.data,
+                                backgroundColor: accentColors,
+                                borderRadius: 5
+                            }]
+                        },
+                        options: options
+                    });
+                }
+
+                const genreCanvas = document.getElementById('genreChart');
+                if (genreCanvas && !charts.genre) {
+                    const genreCtx = genreCanvas.getContext('2d');
+                    const options = JSON.parse(JSON.stringify(horizontalChartOptions));
+                    options.scales.x.title.text = 'Avg. Minutes Watched';
+                    options.scales.y.title.text = 'Genre';
+                    charts.genre = new Chart(genreCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: chartData.genreWatched.labels,
+                            datasets: [{
+                                label: 'Average Minutes Watched',
+                                data: chartData.genreWatched.data,
+                                backgroundColor: accentColors,
+                                borderRadius: 5
+                            }]
+                        },
+                        options: options
+                    });
+                }
+            }
+
+            // Key Analyses Section Charts (on-demand initialization)
+            function initializeKeyAnalysesCharts() {
+                const planChurnQueryCanvas = document.getElementById('planChurnChartQuery');
+                if (planChurnQueryCanvas && !charts.planChurnQuery) {
+                    const planChurnQueryCtx = planChurnQueryCanvas.getContext('2d');
+                    const options = JSON.parse(JSON.stringify(horizontalChartOptions));
+                    options.scales.x.title.text = 'Churn Rate (%)';
+                    options.scales.y.title.text = 'Plan Type';
+                    charts.planChurnQuery = new Chart(planChurnQueryCtx, {
+                        type: 'bar',
+                        data: { labels: chartData.planChurn.labels, datasets: [{ label: 'Churn Rate (%)', data: chartData.planChurn.data, backgroundColor: accentColors, borderWidth: 1, borderRadius: 5 }] },
+                        options: options
+                    });
+                }
+                
+                const minutesWatchedQueryCanvas = document.getElementById('minutesWatchedChartQuery');
+                if (minutesWatchedQueryCanvas && !charts.minutesWatchedQuery) {
+                    const minutesWatchedQueryCtx = minutesWatchedQueryCanvas.getContext('2d');
+                    const options = JSON.parse(JSON.stringify(defaultChartOptions));
+                    options.scales.x.title.text = 'Customer Type';
+                    options.scales.y.title.text = 'Avg. Minutes Watched';
+                    charts.minutesWatchedQuery = new Chart(minutesWatchedQueryCtx, {
+                        type: 'bar',
+                        data: { labels: chartData.minutesWatched.labels, datasets: [{ label: 'Average Minutes Watched', data: chartData.minutesWatched.data, backgroundColor: [secondaryColor, primaryColor], borderRadius: 5 }] },
+                        options: options
+                    });
+                }
+
+                const ageChurnQueryCanvas = document.getElementById('ageChurnChartQuery');
+                if (ageChurnQueryCanvas && !charts.ageChurnQuery) {
+                    const ageChurnQueryCtx = ageChurnQueryCanvas.getContext('2d');
+                    const options = JSON.parse(JSON.stringify(defaultChartOptions));
+                    options.scales.x.title.text = 'Age Group';
+                    options.scales.y.title.text = 'Churn Rate (%)';
+                    charts.ageChurnQuery = new Chart(ageChurnQueryCtx, {
+                        type: 'bar',
+                        data: { labels: chartData.ageChurn.labels, datasets: [{ label: 'Churn Rate (%)', data: chartData.ageChurn.data, backgroundColor: accentColors, borderRadius: 5 }] },
+                        options: options
+                    });
+                }
+
+                const genreQueryCanvas = document.getElementById('genreChartQuery');
+                if (genreQueryCanvas && !charts.genreQuery) {
+                    const genreQueryCtx = genreQueryCanvas.getContext('2d');
+                    const options = JSON.parse(JSON.stringify(horizontalChartOptions));
+                    options.scales.x.title.text = 'Avg. Minutes Watched';
+                    options.scales.y.title.text = 'Genre';
+                    charts.genreQuery = new Chart(genreQueryCtx, {
+                        type: 'bar',
+                        data: { labels: chartData.genreWatched.labels, datasets: [{ label: 'Average Minutes Watched', data: chartData.genreWatched.data, backgroundColor: accentColors, borderRadius: 5 }] },
+                        options: options
+                    });
+                }
+
+                const deviceChurnQueryCanvas = document.getElementById('deviceChurnChartQuery');
+                if (deviceChurnQueryCanvas && !charts.deviceChurnQuery) {
+                    const deviceChurnQueryCtx = deviceChurnQueryCanvas.getContext('2d');
+                    const options = JSON.parse(JSON.stringify(defaultChartOptions));
+                    options.scales.x.title.text = 'Device Type';
+                    options.scales.y.title.text = 'Churn Rate (%)';
+                    charts.deviceChurnQuery = new Chart(deviceChurnQueryCtx, {
+                        type: 'bar',
+                        data: { labels: chartData.deviceChurn.labels, datasets: [{ label: 'Churn Rate (%)', data: chartData.deviceChurn.data, backgroundColor: accentColors, borderRadius: 5 }] },
+                        options: options
+                    });
+                }
+            }
+
+            // Initial chart initialization for the default active section (Overview).
+            initializeOverviewCharts();
+
+        });
+    </script>
+</body>
+</html>
