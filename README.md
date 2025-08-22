@@ -20,19 +20,16 @@ This project showcases my ability to not just analyze data, but to turn it into 
 ## What You'll Find in This Repository
 
 * **Python Scripts**: Code used for generating the realistic customer, subscription, usage, and support ticket data.
-* **Database Schema**: Details on the PostgreSQL table structures and relationships.
 * **SQL Queries**: All the analytical queries used to uncover churn patterns and insights.
-* **Project Documentation**: This README and potentially other supporting documents explaining the methodology and findings.
+* **Project Documentation**: This includes the project's motivation and key learnings.
 
 ---
 
-## Explore the Full Interactive Dashboard!
+## Explore the project in depth on the following website
 
 For a complete, interactive experience, including dynamic charts, detailed insights, and actionable solutions, check out the live web application:
 
-**[🔗 View the Live StreamVerse Churn Dashboard Here!](YOUR_LIVE_WEBSITE_URL_HERE)**
-
-*(Remember to replace `YOUR_LIVE_WEBSITE_URL_HERE` with the actual URL of your GitHub Pages or Netlify site once it's published!)*
+**[🔗 View the Live StreamVerse Churn Dashboard Here!](https://soukaradi.github.io/website_for_churnanalysis/)**
 
 ---
 
@@ -41,8 +38,8 @@ For a complete, interactive experience, including dynamic charts, detailed insig
 This project was an incredible learning experience, solidifying my understanding of the entire data analytics lifecycle. I gained hands-on expertise in:
 
 * **Data Simulation**: Building complex, interconnected datasets with intentional biases.
-* **Advanced SQL**: Using sophisticated queries to extract nuanced business intelligence.
+* **Advanced SQL**: Using queries to extract insights and track key metrics.
 * **Connecting Data to Strategy**: Translating analytical findings into clear, actionable business recommendations.
 * **Problem-Solving**: Iteratively refining analysis and constantly asking "why" to uncover root causes.
 
-This project has reinforced my passion for leveraging data to solve complex business challenges and ultimately help companies grow by building stronger customer relationships.
+My primary goal for this project was to master SQL querying and the reporting of insights, demonstrating how these skills can drive effective business solutions.
