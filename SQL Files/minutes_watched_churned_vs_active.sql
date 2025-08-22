@@ -7,16 +7,3 @@ JOIN
     USAGE_HISTORY uh ON c.customer_id = uh.customer_id
 GROUP BY
     c.is_churned;
-
-
-
-
-
-
-
-
-
-
-
-
-
