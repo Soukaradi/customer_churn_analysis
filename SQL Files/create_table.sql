@@ -8,7 +8,6 @@ CREATE TABLE CUSTOMERS (
     churn_date DATE
 );
 
-----------------------------------------------------------------------------------------------------
 
 CREATE TABLE SUBSCRIPTIONS (
     subscription_id VARCHAR(255) PRIMARY KEY,
@@ -20,7 +19,6 @@ CREATE TABLE SUBSCRIPTIONS (
     FOREIGN KEY (customer_id) REFERENCES CUSTOMERS(customer_id)
 );
 
-----------------------------------------------------------------------------------------------------
 
 CREATE TABLE USAGE_HISTORY (
     usage_id INT PRIMARY KEY,
@@ -31,7 +29,6 @@ CREATE TABLE USAGE_HISTORY (
     FOREIGN KEY (customer_id) REFERENCES CUSTOMERS(customer_id)
 );
 
-----------------------------------------------------------------------------------------------------
 
 CREATE TABLE SUPPORT_TICKETS (
     ticket_id INT PRIMARY KEY,
@@ -42,3 +39,4 @@ CREATE TABLE SUPPORT_TICKETS (
     is_resolved BOOLEAN,
     FOREIGN KEY (customer_id) REFERENCES CUSTOMERS(customer_id)
 );
+
