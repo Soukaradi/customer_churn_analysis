@@ -1,4 +1,4 @@
-# 📊 StreamVerse Customer Churn Analysis & Retention Strategy
+# [📊 StreamVerse Customer Churn Analysis & Retention Strategy](https://soukaradi.github.io/website_for_churnanalysis/)
 
 This project dives into the critical business challenge of **customer churn** for a fictional streaming service, "StreamVerse." It's a data-driven journey to understand *why* customers leave and to develop actionable strategies to keep them engaged and subscribed.
 
